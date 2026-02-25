@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Familia — Auszahlung</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.payout-header{padding:24px 28px 0;position:relative;z-index:1}
+.payout-week{font-family:'Cinzel',serif;font-weight:700;font-size:1.4rem;color:var(--accent-gold);margin-bottom:4px}
+.payout-dates{font-size:.9rem;color:var(--text-secondary);margin-bottom:4px}
+.payout-today{font-size:.85rem;color:var(--text-muted);margin-bottom:8px}
+.payout-counter{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:8px;background:var(--bg-surface);border:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:.9rem;font-weight:600;margin-bottom:20px}
+.payout-counter .paid{color:#5bbd6b}
+.payout-counter .total{color:var(--text-muted)}
+
+.payout-list{padding:0 28px 28px;position:relative;z-index:1}
+.payout-item{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;transition:var(--tr)}
+.payout-item:hover{background:var(--bg-card-hover);border-color:var(--border-light)}
+.payout-item.is-paid{opacity:.6}
+.payout-item.is-paid .pi-name{text-decoration:line-through}
+.pi-avatar{width:38px;height:38px;background:linear-gradient(135deg,var(--accent-gold-glow),var(--bg-elevated));border:2px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:700;font-size:.85rem;color:var(--accent-gold);flex-shrink:0}
+.pi-info{flex:1;min-width:0}
+.pi-name{font-weight:600;font-size:.9rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pi-rank{font-size:.75rem;color:var(--text-muted)}
+.pi-toggle{padding:8px 18px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;transition:var(--tr);border:none;font-family:'Outfit',sans-serif}
+.pi-toggle.unpaid{background:rgba(139,45,45,.3);color:#d45b5b}
+.pi-toggle.unpaid:hover{background:rgba(139,45,45,.5)}
+.pi-toggle.paid{background:rgba(45,107,63,.3);color:#5bbd6b}
+.pi-toggle.paid:hover{background:rgba(45,107,63,.5)}
+
+.week-nav{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.week-nav-btn{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;color:var(--text-secondary);width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;transition:var(--tr)}
+.week-nav-btn:hover{background:var(--bg-elevated);color:var(--text-primary)}
+</style>
+</head>
+<body>
+<div class="loading-screen" id="loadingScreen"><div class="loading-spinner"></div><p>Auszahlung wird geladen...</p></div>
+
+<div class="topbar">
+  <a href="index.html" class="logo-area" style="text-decoration:none"><div class="logo-icon">F</div><div class="logo-text">La Familia</div></a>
+  <div style="display:flex;align-items:center;gap:8px">
+    <a href="index.html" class="btn" style="text-decoration:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Zurück</a>
+  </div>
+  <div style="flex:1"></div>
+  <div class="topbar-actions">
+    <span style="font-family:'Cinzel',serif;font-weight:600;color:var(--accent-gold);letter-spacing:1px;font-size:.95rem">Auszahlungsliste</span>
+  </div>
+</div>
+
+<div class="payout-header" id="payoutHeader"></div>
+<div class="payout-list" id="payoutList"></div>
+
+<footer class="site-footer">made with <span class="heart">❤</span> by <span>Schinken</span> | <span>Fynn Statham</span></footer>
+
+<script type="module">
+import { db, ref, get, onValue, update, RANKS, esc, initDB } from './firebase-config.js';
+
+var membersData = {};
+var payoutData = {};
+var currentWeekOffset = 0;
+
+function getWeekInfo(offset) {
+  var now = new Date();
+  now.setDate(now.getDate() + (offset * 7));
+  // Get Monday of this week
+  var day = now.getDay();
+  var diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  var monday = new Date(now);
+  monday.setDate(diff);
+  monday.setHours(0, 0, 0, 0);
+  var sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  // ISO week number
+  var jan4 = new Date(monday.getFullYear(), 0, 4);
+  var weekNum = Math.ceil(((monday - jan4) / 86400000 + jan4.getDay() + 1) / 7);
+
+  return {
+    weekNum: weekNum,
+    monday: monday,
+    sunday: sunday,
+    key: 'kw' + weekNum + '_' + monday.getFullYear()
+  };
+}
+
+function formatDate(d) {
+  return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function formatDateFull(d) {
+  return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear();
+}
+
+function renderPayout() {
+  var week = getWeekInfo(currentWeekOffset);
+  var today = new Date();
+  var weekPayouts = payoutData[week.key] || {};
+  var memberEntries = Object.entries(membersData).map(function(e) { return { key: e[0], data: e[1] }; });
+  memberEntries.sort(function(a, b) { return (b.data.rank || 0) - (a.data.rank || 0); });
+
+  var totalCount = memberEntries.length;
+  var paidCount = 0;
+  memberEntries.forEach(function(m) { if (weekPayouts[m.key]) paidCount++; });
+
+  // Header
+  var headerHtml = '<div class="week-nav">' +
+    '<button class="week-nav-btn" onclick="prevWeek()">◀</button>' +
+    '<div><div class="payout-week">Kalenderwoche ' + week.weekNum + '</div>' +
+    '<div class="payout-dates">' + formatDate(week.monday) + ' – ' + formatDate(week.sunday) + '</div></div>' +
+    '<button class="week-nav-btn" onclick="nextWeek()">▶</button>' +
+    '</div>' +
+    '<div class="payout-today">Heute: ' + formatDateFull(today) + '</div>' +
+    '<div class="payout-counter">Bezahlt: <span class="paid">' + paidCount + '</span> <span class="total">/ ' + totalCount + '</span></div>';
+
+  document.getElementById('payoutHeader').innerHTML = headerHtml;
+
+  // List
+  var listHtml = '';
+  memberEntries.forEach(function(m) {
+    var d = m.data;
+    var rank = RANKS.find(function(r) { return r.id === d.rank; });
+    var initials = (d.icName || '').split(' ').map(function(w) { return w[0]; }).join('').substring(0, 2).toUpperCase();
+    var isPaid = !!weekPayouts[m.key];
+
+    listHtml += '<div class="payout-item ' + (isPaid ? 'is-paid' : '') + '">' +
+      '<div class="pi-avatar">' + initials + '</div>' +
+      '<div class="pi-info"><div class="pi-name">' + esc(d.icName || '') + '</div><div class="pi-rank">' + (rank ? rank.label + ' | ' + rank.name : '') + '</div></div>' +
+      '<button class="pi-toggle ' + (isPaid ? 'paid' : 'unpaid') + '" onclick="togglePayout(\'' + m.key + '\')">' + (isPaid ? '✓ Bezahlt' : '✗ Offen') + '</button>' +
+      '</div>';
+  });
+
+  if (!memberEntries.length) listHtml = '<div class="empty-state"><p>Keine Mitglieder vorhanden.</p></div>';
+  document.getElementById('payoutList').innerHTML = listHtml;
+}
+
+window.togglePayout = async function(memberKey) {
+  var week = getWeekInfo(currentWeekOffset);
+  var weekPayouts = payoutData[week.key] || {};
+  var isPaid = !!weekPayouts[memberKey];
+  var updates = {};
+  updates['payouts/' + week.key + '/' + memberKey] = isPaid ? null : true;
+  await update(ref(db), updates);
+};
+
+window.prevWeek = function() { currentWeekOffset--; renderPayout(); };
+window.nextWeek = function() { currentWeekOffset++; renderPayout(); };
+
+// Boot
+async function boot() {
+  try {
+    await initDB();
+    onValue(ref(db, 'members'), function(snap) { membersData = snap.val() || {}; renderPayout(); });
+    onValue(ref(db, 'payouts'), function(snap) { payoutData = snap.val() || {}; renderPayout(); });
+    setTimeout(function() { document.getElementById('loadingScreen').classList.add('hide'); }, 600);
+  } catch (err) {
+    console.error('Firebase error:', err);
+    document.getElementById('loadingScreen').innerHTML = '<p style="color:#d45b5b">Verbindungsfehler.</p>';
+  }
+}
+boot();
+</script>
+</body>
+</html>
