@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>La Familia — Abmeldung</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.abmeld-container{max-width:480px;margin:0 auto;padding:32px 20px;position:relative;z-index:1;flex:1}
+.abmeld-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;box-shadow:var(--shadow)}
+.abmeld-title{font-family:'Cinzel',serif;font-weight:700;font-size:1.3rem;color:var(--accent-gold);text-align:center;margin-bottom:8px;letter-spacing:1px}
+.abmeld-subtitle{text-align:center;color:var(--text-muted);font-size:.85rem;margin-bottom:24px}
+.pin-input-group{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
+.pin-digit{width:56px;height:64px;background:var(--bg-deep);border:2px solid var(--border);border-radius:10px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:1.6rem;font-weight:700;color:var(--accent-gold);outline:none;transition:var(--tr)}
+.pin-digit:focus{border-color:var(--accent-gold-dim);box-shadow:0 0 0 3px var(--accent-gold-glow)}
+.pin-error{text-align:center;color:#d45b5b;font-size:.82rem;margin-bottom:12px;display:none}
+
+.profile-card{animation:fadeIn .4s ease}
+.profile-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.profile-avatar{width:56px;height:56px;background:linear-gradient(135deg,var(--accent-gold-glow),var(--bg-elevated));border:2px solid var(--accent-gold-dim);border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;font-size:1.3rem;color:var(--accent-gold)}
+.profile-name{font-family:'Cinzel',serif;font-weight:700;font-size:1.15rem;color:var(--text-primary)}
+.profile-rank{font-size:.85rem;color:var(--text-muted)}
+
+.status-banner{padding:14px 18px;border-radius:10px;margin-bottom:20px;display:flex;align-items:center;gap:12px}
+.status-banner.active{background:rgba(45,107,63,.15);border:1px solid rgba(45,107,63,.3)}
+.status-banner.absent{background:rgba(139,45,45,.15);border:1px solid rgba(139,45,45,.3)}
+.status-banner .status-icon{font-size:1.4rem}
+.status-banner .status-text{font-size:.9rem;font-weight:500}
+.status-banner.active .status-text{color:#5bbd6b}
+.status-banner.absent .status-text{color:#d45b5b}
+.status-banner .status-detail{font-size:.78rem;color:var(--text-muted);margin-top:2px}
+
+.action-section{margin-top:20px}
+.action-title{font-size:.85rem;font-weight:600;color:var(--text-secondary);margin-bottom:10px}
+
+.logout-link{display:block;text-align:center;margin-top:20px;color:var(--text-muted);font-size:.8rem;cursor:pointer;transition:var(--tr)}
+.logout-link:hover{color:var(--text-primary)}
+
+.success-msg{background:rgba(45,107,63,.15);border:1px solid rgba(45,107,63,.3);border-radius:8px;padding:12px;text-align:center;color:#5bbd6b;font-size:.88rem;font-weight:500;margin-bottom:16px;display:none;animation:fadeIn .3s ease}
+</style>
+</head>
+<body>
+<div class="loading-screen" id="loadingScreen"><div class="loading-spinner"></div><p>Wird geladen...</p></div>
+
+<div class="topbar">
+  <a href="index.html" class="logo-area" style="text-decoration:none"><div class="logo-icon">F</div><div class="logo-text">La Familia</div></a>
+  <div style="flex:1"></div>
+  <div class="topbar-actions">
+    <span style="font-family:'Cinzel',serif;font-weight:600;color:var(--accent-gold);letter-spacing:1px;font-size:.95rem">Abmeldung</span>
+  </div>
+</div>
+
+<div class="abmeld-container">
+  <!-- PIN LOGIN -->
+  <div id="pinView" class="abmeld-card">
+    <div class="abmeld-title">Abmeldung</div>
+    <div class="abmeld-subtitle">Gib deinen 4-stelligen PIN ein</div>
+    <div class="pin-input-group">
+      <input type="text" maxlength="1" class="pin-digit" id="pin1" oninput="pinInput(this,1)" onkeydown="pinKeydown(event,1)" autofocus>
+      <input type="text" maxlength="1" class="pin-digit" id="pin2" oninput="pinInput(this,2)" onkeydown="pinKeydown(event,2)">
+      <input type="text" maxlength="1" class="pin-digit" id="pin3" oninput="pinInput(this,3)" onkeydown="pinKeydown(event,3)">
+      <input type="text" maxlength="1" class="pin-digit" id="pin4" oninput="pinInput(this,4)" onkeydown="pinKeydown(event,4)">
+    </div>
+    <p class="pin-error" id="pinError">PIN nicht gefunden. Bitte erneut versuchen.</p>
+    <button class="btn btn-gold" style="width:100%;justify-content:center;padding:12px" onclick="checkPin()">Anmelden</button>
+  </div>
+
+  <!-- PROFILE VIEW (hidden initially) -->
+  <div id="profileView" class="abmeld-card" style="display:none">
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="profile-avatar" id="profAvatar"></div>
+        <div>
+          <div class="profile-name" id="profName"></div>
+          <div class="profile-rank" id="profRank"></div>
+        </div>
+      </div>
+
+      <div class="success-msg" id="successMsg"></div>
+
+      <div id="statusBanner"></div>
+
+      <!-- Abmelden Form -->
+      <div id="abmeldenForm" style="display:none">
+        <div class="action-section">
+          <div class="action-title">Abmeldung eintragen</div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Bis Datum (T/M)</label><input type="text" class="form-input" id="abDate" placeholder="25/03"></div>
+            <div class="form-group"><label class="form-label">Bis Uhrzeit</label><input type="text" class="form-input" id="abTime" placeholder="18:00"></div>
+          </div>
+          <div class="form-group"><label class="form-label">Grund (optional)</label><input type="text" class="form-input" id="abReason" placeholder="z.B. Urlaub, Krank..."></div>
+          <button class="btn btn-gold" style="width:100%;justify-content:center;padding:10px" onclick="submitAbsence()">📅 Abmelden</button>
+        </div>
+      </div>
+
+      <!-- Aktiv melden Button -->
+      <div id="aktivForm" style="display:none">
+        <div class="action-section">
+          <button class="btn btn-green" style="width:100%;justify-content:center;padding:12px;font-size:.9rem" onclick="goActive()">✓ Wieder aktiv melden</button>
+        </div>
+      </div>
+
+      <div class="logout-link" onclick="pinLogout()">Abmelden / Anderer Account</div>
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">made with <span class="heart">❤</span> by <span>Schinken</span> | <span>Fynn Statham</span></footer>
+
+<script type="module">
+import { db, ref, onValue, update, esc, parseDMTime, formatDT, RANKS, initDB } from './firebase-config.js';
+
+var membersData = {};
+var currentMemberKey = null;
+
+// Check localStorage for saved PIN
+var savedPin = localStorage.getItem('lf_member_pin');
+
+// PIN input logic
+window.pinInput = function(el, idx) {
+  el.value = el.value.replace(/[^0-9]/g, '');
+  if (el.value && idx < 4) {
+    document.getElementById('pin' + (idx + 1)).focus();
+  }
+  if (idx === 4 && el.value) checkPin();
+};
+window.pinKeydown = function(e, idx) {
+  if (e.key === 'Backspace' && !e.target.value && idx > 1) {
+    document.getElementById('pin' + (idx - 1)).focus();
+  }
+  if (e.key === 'Enter') checkPin();
+};
+
+window.checkPin = function() {
+  var pin = document.getElementById('pin1').value + document.getElementById('pin2').value + document.getElementById('pin3').value + document.getElementById('pin4').value;
+  if (pin.length !== 4) return;
+  var found = findMemberByPin(pin);
+  if (found) {
+    localStorage.setItem('lf_member_pin', pin);
+    currentMemberKey = found.key;
+    showProfile();
+  } else {
+    document.getElementById('pinError').style.display = 'block';
+    // Clear pins
+    for (var i = 1; i <= 4; i++) { document.getElementById('pin' + i).value = ''; }
+    document.getElementById('pin1').focus();
+  }
+};
+
+function findMemberByPin(pin) {
+  var keys = Object.keys(membersData);
+  for (var i = 0; i < keys.length; i++) {
+    if (membersData[keys[i]].pin === pin) return { key: keys[i], data: membersData[keys[i]] };
+  }
+  return null;
+}
+
+function showProfile() {
+  if (!currentMemberKey || !membersData[currentMemberKey]) return;
+  var m = membersData[currentMemberKey];
+  var rank = RANKS.find(function(r) { return r.id === m.rank; });
+  var initials = (m.icName || '').split(' ').map(function(w) { return w[0]; }).join('').substring(0, 2).toUpperCase();
+  var now = new Date();
+  var isAbsent = m.absence && m.absence.until && new Date(m.absence.until) > now;
+
+  document.getElementById('pinView').style.display = 'none';
+  document.getElementById('profileView').style.display = 'block';
+  document.getElementById('profAvatar').textContent = initials;
+  document.getElementById('profName').textContent = m.icName || '';
+  document.getElementById('profRank').textContent = rank ? rank.label + ' | ' + rank.name : '';
+
+  // Status banner
+  if (isAbsent) {
+    var absDate = formatDT(new Date(m.absence.until));
+    var reasonText = m.absence.reason ? ' — ' + esc(m.absence.reason) : '';
+    document.getElementById('statusBanner').innerHTML = '<div class="status-banner absent"><div class="status-icon">🔴</div><div><div class="status-text">Abgemeldet</div><div class="status-detail">Bis ' + absDate + reasonText + '</div></div></div>';
+    document.getElementById('abmeldenForm').style.display = 'none';
+    document.getElementById('aktivForm').style.display = 'block';
+  } else {
+    document.getElementById('statusBanner').innerHTML = '<div class="status-banner active"><div class="status-icon">🟢</div><div><div class="status-text">Aktiv</div><div class="status-detail">Du bist aktuell als aktiv gemeldet</div></div></div>';
+    document.getElementById('abmeldenForm').style.display = 'block';
+    document.getElementById('aktivForm').style.display = 'none';
+  }
+}
+
+window.submitAbsence = async function() {
+  if (!currentMemberKey) return;
+  var dateStr = document.getElementById('abDate').value.trim();
+  var timeStr = document.getElementById('abTime').value.trim();
+  var reason = document.getElementById('abReason').value.trim();
+  var dt = parseDMTime(dateStr, timeStr);
+  if (!dt) { alert('Bitte gültiges Datum (T/M) und Uhrzeit (HH:MM) eingeben.'); return; }
+  await update(ref(db, 'members/' + currentMemberKey), { absence: { until: dt.toISOString(), reason: reason } });
+  document.getElementById('abDate').value = '';
+  document.getElementById('abTime').value = '';
+  document.getElementById('abReason').value = '';
+  showSuccess('Du bist jetzt abgemeldet bis ' + formatDT(dt));
+};
+
+window.goActive = async function() {
+  if (!currentMemberKey) return;
+  await update(ref(db, 'members/' + currentMemberKey), { absence: null });
+  showSuccess('Du bist jetzt wieder aktiv!');
+};
+
+window.pinLogout = function() {
+  localStorage.removeItem('lf_member_pin');
+  currentMemberKey = null;
+  document.getElementById('profileView').style.display = 'none';
+  document.getElementById('pinView').style.display = 'block';
+  document.getElementById('pinError').style.display = 'none';
+  document.getElementById('successMsg').style.display = 'none';
+  for (var i = 1; i <= 4; i++) { document.getElementById('pin' + i).value = ''; }
+  document.getElementById('pin1').focus();
+};
+
+function showSuccess(msg) {
+  var el = document.getElementById('successMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 4000);
+}
+
+// Boot
+async function boot() {
+  try {
+    await initDB();
+    onValue(ref(db, 'members'), function(snap) {
+      membersData = snap.val() || {};
+      // Auto-login if saved PIN
+      if (savedPin && !currentMemberKey) {
+        var found = findMemberByPin(savedPin);
+        if (found) {
+          currentMemberKey = found.key;
+          showProfile();
+        } else {
+          localStorage.removeItem('lf_member_pin');
+          savedPin = null;
+        }
+      }
+      // Refresh profile if already viewing
+      if (currentMemberKey) showProfile();
+    });
+    setTimeout(function() { document.getElementById('loadingScreen').classList.add('hide'); }, 600);
+  } catch (err) {
+    console.error('Firebase error:', err);
+    document.getElementById('loadingScreen').innerHTML = '<p style="color:#d45b5b">Verbindungsfehler.</p>';
+  }
+}
+boot();
+</script>
+</body>
+</html>
